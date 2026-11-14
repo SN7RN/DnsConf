@@ -1,0 +1,8 @@
+@echo off
+setlocal
+set "GAZ_DELIVERY_DIR=%~dp0"
+powershell.exe -NoLogo -NoProfile -Command "$ErrorActionPreference='Stop'; try { Set-Location -LiteralPath $env:GAZ_DELIVERY_DIR; $name='GAZ-Dub-Windows11-2026-11-14.zip'; $expected='14b30eb004b702066a0dfc828d2d9de477756f6418145db8af8da58fdf5e989c'; if ((Test-Path -LiteralPath $name) -and ((Get-FileHash -LiteralPath $name -Algorithm SHA256).Hash -eq $expected)) { Write-Host 'Archive already restored and verified.'; exit 0 }; $parts=Get-Content -LiteralPath 'chunks.json' -Raw | ConvertFrom-Json; foreach ($p in $parts) { Write-Host ('Checking '+$p.name); if (!(Test-Path -LiteralPath $p.name)) { throw ('Missing part: '+$p.name) }; if ((Get-Item -LiteralPath $p.name).Length -ne $p.bytes) { throw ('Wrong size: '+$p.name) }; if ((Get-FileHash -LiteralPath $p.name -Algorithm SHA256).Hash -ne $p.sha256) { throw ('Checksum mismatch: '+$p.name) } }; $temp=$name+'.assembling'; $out=[System.IO.File]::Create((Join-Path (Get-Location).Path $temp)); try { foreach ($p in $parts) { $inputStream=[System.IO.File]::OpenRead((Join-Path (Get-Location).Path $p.name)); try { $inputStream.CopyTo($out) } finally { $inputStream.Dispose() } } } finally { $out.Dispose() }; if ((Get-FileHash -LiteralPath $temp -Algorithm SHA256).Hash -ne $expected) { throw 'Restored ZIP checksum mismatch' }; Move-Item -LiteralPath $temp -Destination $name -Force; Write-Host ('SUCCESS: '+$name); Write-Host 'Extract the restored ZIP, then open GAZ-Start.cmd.' } catch { Write-Host $_.Exception.Message -ForegroundColor Red; exit 1 }"
+set "GAZ_RESULT=%ERRORLEVEL%"
+echo.
+pause
+exit /b %GAZ_RESULT%
